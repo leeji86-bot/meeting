@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대학 서면회의 관리 시스템</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: { 800: '#1e293b', 900: '#0f172a' },
+                        univ: { primary: '#1e3a8a', accent: '#2563eb', bg: '#f8fafc' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 인쇄 시 불필요한 UI 제거 및 문서 양식 적용 */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; color: black; padding: 0; margin: 0; }
+            .print-container { width: 100%; max-width: 100%; border: none; box-shadow: none; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- 상단 해더 (no-print) -->
+    <header class="no-print bg-univ-primary text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-baseline space-x-3">
+                <h1 class="text-xl font-bold tracking-tight">한국대학교 서면회의 시스템</h1>
+                <span class="text-xs bg-blue-700 text-blue-100 px-2 py-0.5 rounded" id="userRoleBadge">관리자 모드</span>
+            </div>
+            <div class="flex items-center space-x-4 text-sm">
+                <span id="userInfo">김행정 사무관 (교무처)</span>
+                <button onclick="toggleUserRole()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded border border-blue-400 text-xs transition">
+                    모드 전환 (시연용)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 max-w-7xl w-full mx-auto my-6 px-6 gap-6">
+        
+        <!-- 좌측 사이드바 (no-print) -->
+        <aside class="no-print w-64 bg-white rounded-lg border border-slate-200 shadow-sm p-4 flex flex-col justify-between">
+            <nav class="space-y-1">
+                <div class="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">주요 메뉴</div>
+                <button onclick="showSection('dashboard')" class="menu-btn w-full text-left px-3 py-2.5 rounded-md font-medium text-slate-700 hover:bg-slate-100 hover:text-univ-primary flex items-center space-x-2">
+                    <span>📊 대시보드</span>
+                </button>
+                <button onclick="showSection('meetings')" class="menu-btn w-full text-left px-3 py-2.5 rounded-md font-medium text-slate-700 hover:bg-slate-100 hover:text-univ-primary flex items-center space-x-2">
+                    <span>📂 회의 관리</span>
+                </button>
+                <button onclick="showSection('aggregation')" id="adminMenu1" class="menu-btn w-full text-left px-3 py-2.5 rounded-md font-medium text-slate-700 hover:bg-slate-100 hover:text-univ-primary flex items-center space-x-2">
+                    <span>📈 의견 집계</span>
+                </button>
+                <button onclick="showSection('minutes')" id="adminMenu2" class="menu-btn w-full text-left px-3 py-2.5 rounded-md font-medium text-slate-700 hover:bg-slate-100 hover:text-univ-primary flex items-center space-x-2">
+                    <span>📝 회의록 출력</span>
+                </button>
+                <div class="pt-4 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider member-only hidden">위원 서비스</div>
+                <button onclick="showSection('memberVote')" class="menu-btn member-only hidden w-full text-left px-3 py-2.5 rounded-md font-medium text-slate-700 hover:bg-slate-100 hover:text-univ-primary flex items-center space-x-2">
+                    <span>✍️ 안건 검토 및 서명</span>
+                </button>
+            </nav>
+            <div class="border-t pt-4 text-xs text-slate-500">
+                도움말: 교무처 행정지원팀<br>
+                Tel: 031-000-0000
+            </div>
+        </aside>
+
+        <!-- 메인 콘텐츠 영역 -->
+        <main class="flex-1 bg-white rounded-lg border border-slate-200 shadow-sm p-6">
+            
+            <!-- 1. 대시보드 화면 -->
+            <section id="sec-dashboard" class="space-y-6">
+                <h2 class="text-2xl font-bold text-slate-800 border-b pb-3">대시보드</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="text-xs text-blue-600 font-semibold uppercase">전체 회의</div>
+                        <div class="text-3xl font-extrabold text-blue-900 mt-2">12 건</div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                        <div class="text-xs text-emerald-600 font-semibold uppercase">진행 중인 회의</div>
+                        <div class="text-3xl font-extrabold text-emerald-900 mt-2">3 건</div>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div class="text-xs text-amber-600 font-semibold uppercase">응답 대기 위원</div>
+                        <div class="text-3xl font-extrabold text-amber-900 mt-2">5 명</div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div class="text-xs text-slate-500 font-semibold uppercase">완료된 회의</div>
+                        <div class="text-3xl font-extrabold text-slate-700 mt-2">9 건</div>
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-lg font-bold text-slate-800 mb-3">최근 서면회의 진행 현황</h3>
+                    <table class="w-full text-sm text-left text-slate-600 border border-slate-200">
+                        <thead class="bg-slate-100 text-slate-700 border-b">
+                            <tr>
+                                <th class="p-3">회의명</th>
+                                <th class="p-3">위원회</th>
+                                <th class="p-3">기간</th>
+                                <th class="p-3">응답률</th>
+                                <th class="p-3">상태</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <tr class="hover:bg-slate-50 cursor-pointer" onclick="showSection('meetings')">
+                                <td class="p-3 font-semibold text-univ-primary">2026학년도 제2차 대학평의원회 서면심의</td>
+                                <td class="p-3">대학평의원회</td>
+                                <td class="p-3 text-xs">2026.10.12 ~ 10.18</td>
+                                <td class="p-3">
+                                    <div class="w-full bg-slate-200 rounded-full h-2.5 max-w-[100px]">
+                                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: 75%"></div>
+                                    </div>
+                                    <span class="text-xs text-slate-500 mt-1 block">75% (9/12)</span>
+                                </td>
+                                <td class="p-3"><span class="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-semibold rounded">진행 중</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 2. 회의 관리 (안건 등록 포함) -->
+            <section id="sec-meetings" class="space-y-6 hidden">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h2 class="text-2xl font-bold text-slate-800">서면회의 상세 관리</h2>
+                    <button onclick="alert('신규 회의 등록 모달이 활성화됩니다.')" class="bg-univ-primary hover:bg-blue-900 text-white px-4 py-2 rounded text-sm font-medium">
+                        + 신규 회의 개설
+                    </button>
+                </div>
+                
+                <div class="bg-slate-50 p-4 border rounded-md space-y-2">
+                    <div class="flex justify-between">
+                        <span class="font-bold text-lg">2026학년도 제2차 대학평의원회 서면심의</span>
+                        <span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded">상태: 진행 중</span>
+                    </div>
+                    <p class="text-sm text-slate-600"><strong>회의 목적:</strong> 학칙 개정안 및 2027학년도 입학정원 조정안 검토</p>
+                    <p class="text-sm text-slate-600"><strong>회의 기간:</strong> 2026-10-12 ~ 2026-10-18 | <strong>담당자:</strong> 교무처 김행정 (031-000-0000)</p>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="font-bold text-slate-800 text-lg">등록된 안건 목록</h3>
+                    
+                    <div class="border rounded-lg p-4 space-y-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">안건 제1호</span>
+                                <h4 class="font-bold text-base mt-1">학칙 일부 개정안(안) 심의의 건</h4>
+                            </div>
+                            <span class="text-xs text-blue-600 font-medium">첨부파일: 학칙개정안_최종.pdf</span>
+                        </div>
+                        <p class="text-sm text-slate-600 bg-slate-50 p-3 rounded border">
+                            학사구조 개편에 따른 학칙 제24조(전과) 및 제31조(졸업요건) 조항 변경에 대한 서면 심의 요청.
+                        </p>
+                    </div>
+
+                    <div class="border rounded-lg p-4 space-y-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">안건 제2호</span>
+                                <h4 class="font-bold text-base mt-1">2027학년도 모집단위별 입학정원 조정(안)</h4>
+                            </div>
+                            <span class="text-xs text-blue-600 font-medium">첨부파일: 정원조정안_비교표.xlsx</span>
+                        </div>
+                        <p class="text-sm text-slate-600 bg-slate-50 p-3 rounded border">
+                            AI융합대학 신설에 따른 기존 학과 입학정원 조정안 검토 요청.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. 위원용 안건 검토 및 전자서명 -->
+            <section id="sec-memberVote" class="space-y-6 hidden">
+                <h2 class="text-2xl font-bold text-slate-800 border-b pb-3">안건 심의 및 의견 제출</h2>
+
+                <!-- 안건 1 -->
+                <div class="border rounded-lg p-5 space-y-4">
+                    <div class="border-b pb-2">
+                        <span class="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded">안건 제1호</span>
+                        <h3 class="text-lg font-bold text-slate-800 mt-1">학칙 일부 개정안(안) 심의의 건</h3>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold mb-2">1. 의결 의사 표시 <span class="text-red-500">*</span></label>
+                        <div class="flex space-x-6">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="vote1" value="APPROVE" class="w-4 h-4 text-blue-600">
+                                <span class="text-sm font-semibold text-emerald-700">찬성</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="vote1" value="REJECT" class="w-4 h-4 text-blue-600">
+                                <span class="text-sm font-semibold text-rose-700">반대</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="vote1" value="HOLD" class="w-4 h-4 text-blue-600">
+                                <span class="text-sm font-semibold text-amber-700">보류</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">2. 검토 의견 작성</label>
+                        <textarea class="w-full border rounded-md p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" rows="3" placeholder="안건에 대한 개정 사유, 수정 조항 제안 등 세부 의견을 입력하세요."></textarea>
+                    </div>
+                </div>
+
+                <!-- 전자서명 패드 -->
+                <div class="border rounded-lg p-5 bg-slate-50 space-y-3">
+                    <h3 class="font-bold text-slate-800">최종 서명 및 제출 Confirmation</h3>
+                    <p class="text-xs text-slate-500">본인은 위 작성한 안건 검토 의견에 거짓이 없음을 확인하며, 아래 서명 패드에 서명 후 제출합니다.</p>
+                    
+                    <div class="bg-white border rounded-md inline-block">
+                        <canvas id="sigCanvas" width="400" height="150" class="cursor-crosshair"></canvas>
+                    </div>
+                    <div>
+                        <button onclick="clearSignature()" class="text-xs bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded">서명 초기화</button>
+                    </div>
+
+                    <div class="pt-4 flex space-x-3">
+                        <button onclick="alert('작성 내용이 임시 저장되었습니다.')" class="bg-slate-600 hover:bg-slate-700 text-white px-5 py-2.5 rounded font-medium text-sm">임시 저장</button>
+                        <button onclick="submitFinal()" class="bg-univ-primary hover:bg-blue-900 text-white px-6 py-2.5 rounded font-bold text-sm shadow">최종 제출하기</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. 결과 집계 화면 -->
+            <section id="sec-aggregation" class="space-y-6 hidden">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h2 class="text-2xl font-bold text-slate-800">의견 및 찬반 집계 결과</h2>
+                    <button onclick="alert('집계 결과가 Excel 파일로 다운로드됩니다.')" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-1.5 rounded text-sm font-medium">
+                        📥 Excel 다운로드
+                    </button>
+                </div>
+
+                <div class="border rounded-lg overflow-hidden">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-100 text-slate-700 border-b">
+                            <tr>
+                                <th class="p-3">구분</th>
+                                <th class="p-3">안건명</th>
+                                <th class="p-3 text-center">찬성</th>
+                                <th class="p-3 text-center">반대</th>
+                                <th class="p-3 text-center">보류</th>
+                                <th class="p-3 text-center">응답률</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y text-slate-700">
+                            <tr>
+                                <td class="p-3 font-bold">제1호</td>
+                                <td class="p-3">학칙 일부 개정안(안) 심의의 건</td>
+                                <td class="p-3 text-center font-bold text-emerald-600">8명</td>
+                                <td class="p-3 text-center font-bold text-rose-600">1명</td>
+                                <td class="p-3 text-center font-bold text-amber-600">0명</td>
+                                <td class="p-3 text-center">75% (9/12)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-bold">제2호</td>
+                                <td class="p-3">2027학년도 모집단위별 입학정원 조정(안)</td>
+                                <td class="p-3 text-center font-bold text-emerald-600">7명</td>
+                                <td class="p-3 text-center font-bold text-rose-600">2명</td>
+                                <td class="p-3 text-center font-bold text-amber-600">0명</td>
+                                <td class="p-3 text-center">75% (9/12)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 5. 회의록 미리보기 및 인쇄 (Print Friendly) -->
+            <section id="sec-minutes" class="space-y-6 hidden">
+                <div class="no-print flex justify-between items-center border-b pb-3">
+                    <h2 class="text-2xl font-bold text-slate-800">공식 회의록 생성 및 인쇄</h2>
+                    <button onclick="window.print()" class="bg-slate-800 hover:bg-black text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2">
+                        🖨️ 회의록 인쇄 / PDF 저장
+                    </button>
+                </div>
+
+                <!-- 회의록 양식 문서 (인쇄 전용 제어 클래스 포함) -->
+                <div class="print-container border p-8 bg-white max-w-3xl mx-auto shadow-sm text-slate-900 space-y-6">
+                    <div class="text-center border-b-2 border-slate-900 pb-4">
+                        <h1 class="text-2xl font-extrabold tracking-widest">서 면 회 의 록</h1>
+                        <p class="text-sm mt-1 text-slate-600">한국대학교 대학평의원회</p>
+                    </div>
+
+                    <table class="w-full border-collapse border border-slate-400 text-sm">
+                        <tr>
+                            <th class="border border-slate-400 bg-slate-100 p-2 w-1/4">회의명</th>
+                            <td class="border border-slate-400 p-2" colspan="3">2026학년도 제2차 대학평의원회 서면심의</td>
+                        </tr>
+                        <tr>
+                            <th class="border border-slate-400 bg-slate-100 p-2">회의 기간</th>
+                            <td class="border border-slate-400 p-2">2026.10.12 ~ 2026.10.18</td>
+                            <th class="border border-slate-400 bg-slate-100 p-2 w-1/4">재적 / 제출</th>
+                            <td class="border border-slate-400 p-2">12명 / 9명</td>
+                        </tr>
+                    </table>
+
+                    <div class="space-y-3">
+                        <h3 class="font-bold text-base border-l-4 border-slate-800 pl-2">1. 안건 심의 결과</h3>
+                        <table class="w-full border-collapse border border-slate-400 text-sm">
+                            <thead class="bg-slate-100">
+                                <tr>
+                                    <th class="border border-slate-400 p-2">안건번호</th>
+                                    <th class="border border-slate-400 p-2">안건 제목</th>
+                                    <th class="border border-slate-400 p-2">의결 결과</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="border border-slate-400 p-2 text-center">제1호</td>
+                                    <td class="border border-slate-400 p-2">학칙 일부 개정안(안) 심의의 건</td>
+                                    <td class="border border-slate-400 p-2 text-center font-bold">원안 가결 (찬성 8, 반대 1)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="font-bold text-base border-l-4 border-slate-800 pl-2">2. 주요 검토 의견 요약</h3>
+                        <div class="border border-slate-400 p-3 text-sm min-h-[80px] bg-slate-50">
+                            - 학칙 제24조 전과 요건 완화에 대해 대다수 위원이 동의함.<br>
+                            - 단, 학사 혼란 방지를 위해 시행 시기를 2027학년도 1학기로 명시할 필요가 있다는 수정 의견 제안됨.
+                        </div>
+                    </div>
+
+                    <div class="pt-8 text-center text-sm font-semibold">
+                        <p>위와 같이 서면회의 심의 결과를 정식 회의록으로 보고합니다.</p>
+                        <p class="mt-8">2026년 10월 18일</p>
+                        <p class="mt-4 text-base font-bold">한국대학교 대학평의원회 의장 (인)</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // 화면 전환 로직
+        function showSection(sectionId) {
+            const sections = ['dashboard', 'meetings', 'memberVote', 'aggregation', 'minutes'];
+            sections.forEach(sec => {
+                const el = document.getElementById('sec-' + sec);
+                if (el) el.classList.add('hidden');
+            });
+            document.getElementById('sec-' + sectionId).classList.remove('hidden');
+        }
+
+        // 시연용 관리자/위원 모드 스위칭
+        let isAdmin = true;
+        function toggleUserRole() {
+            isAdmin = !isAdmin;
+            document.getElementById('userRoleBadge').innerText = isAdmin ? '관리자 모드' : '위원 모드';
+            document.getElementById('userInfo').innerText = isAdmin ? '김행정 사무관 (교무처)' : '박교수 위원 (인문대학)';
+
+            const adminMenus = [document.getElementById('adminMenu1'), document.getElementById('adminMenu2')];
+            const memberMenus = document.querySelectorAll('.member-only');
+
+            if (isAdmin) {
+                adminMenus.forEach(el => el.classList.remove('hidden'));
+                memberMenus.forEach(el => el.classList.add('hidden'));
+                showSection('dashboard');
+            } else {
+                adminMenus.forEach(el => el.classList.add('hidden'));
+                memberMenus.forEach(el => el.classList.remove('hidden'));
+                showSection('memberVote');
+            }
+        }
+
+        // Canvas 전자서명 로직
+        const canvas = document.getElementById('sigCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); });
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        });
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+
+        function clearSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function submitFinal() {
+            if (confirm("최종 제출 후에는 수정할 수 없습니다. 제출하시겠습니까?")) {
+                alert("서면회의 의견 및 전자서명이 성공적으로 제출되었습니다.");
+            }
+        }
+    </script>
+</body>
+</html>
